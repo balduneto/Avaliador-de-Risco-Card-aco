@@ -230,10 +230,16 @@
                     const input = document.getElementById(`input-${item.id}`);
                     if(input.value === ''){
                         allAnswered = false;
-                        input.classList.add('border-red-500');
+                        // Encontra o container de botões ou o slider para destacar o erro
+                        const questionContent = input.closest('.flex, .grid');
+                        if(questionContent) {
+                           // Apenas para feedback visual futuro, se necessário.
+                        }
                     } else {
-                        input.classList.remove('border-red-500');
-                        userAnswers[item.id] = input.value;
+                        // A escrita em userAnswers foi removida daqui.
+                        // Ela já é feita de forma mais eficiente nos eventos de 'click' (botões) 
+                        // e 'oninput' (sliders), e na inicialização dos sliders. 
+                        // Esta função agora serve apenas para validação.
                     }
                 });
                 if(!allAnswered) {
@@ -264,7 +270,8 @@
                         const hiddenInput = document.createElement('input');
                         hiddenInput.type = 'hidden';
                         hiddenInput.id = `input-${item.id}`;
-                        hiddenInput.value = userAnswers[item.id] || '';
+                        // CORREÇÃO: Verifica explicitamente por 'undefined' para não tratar o valor 0 como ausente.
+                        hiddenInput.value = userAnswers[item.id] !== undefined ? userAnswers[item.id] : '';
                         questionDiv.appendChild(hiddenInput);
 
                         const buttonContainer = document.createElement('div');
@@ -281,11 +288,12 @@
                             button.dataset.value = value;
 
                             const baseClasses = 'w-full text-center p-3 rounded-lg border-2 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400';
-                            const defaultClasses = 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400';
+                            const defaultClasses = 'bg-white border-gray-300 text-gray-700';
                             const selectedClasses = 'bg-red-600 border-red-700 text-white shadow-lg scale-105';
                             
-                            // Define o estilo inicial do botão
-                            button.className = (hiddenInput.value == value) 
+                            // CORREÇÃO: Adiciona uma verificação para garantir que o input não está vazio antes de comparar.
+                            // Isso evita que o valor 0 seja selecionado por padrão devido à coerção de tipo (' ' == 0).
+                            button.className = (hiddenInput.value !== '' && hiddenInput.value == value) 
                                 ? `${baseClasses} ${selectedClasses}`
                                 : `${baseClasses} ${defaultClasses}`;
 
@@ -633,6 +641,9 @@
 
 </body>
 </html>
+
+
+
 
 
 
