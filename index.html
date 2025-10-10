@@ -112,10 +112,10 @@
                     key: 'perfil',
                     title: 'Perfil Básico',
                     items: [
-                        { id: 'idade', text: 'Qual sua idade?', type: 'range', min: 20, max: 90, defaultValue: 45, unit: 'anos' },
-                        { id: 'sexo', text: 'Qual seu sexo biológico?', type: 'select', options: ['Feminino', 'Masculino'], values: [1, 2] }, // Fator de risco pode variar
-                        { id: 'altura', text: 'Sua altura', type: 'range', min: 120, max: 220, defaultValue: 170, unit: 'cm' },
-                        { id: 'peso', text: 'Seu peso', type: 'range', min: 30, max: 200, defaultValue: 75, unit: 'kg' }
+                        { id: 'idade', text: 'Qual sua idade?', type: 'number', placeholder: '45', unit: 'anos' },
+                        { id: 'sexo', text: 'Qual seu sexo biológico?', type: 'select', options: ['Feminino', 'Masculino'], values: [1, 2] },
+                        { id: 'altura', text: 'Sua altura (em cm)', type: 'number', placeholder: '170', unit: 'cm' },
+                        { id: 'peso', text: 'Seu peso (em kg)', type: 'number', placeholder: '75', unit: 'kg' }
                     ]
                 },
                 {
@@ -315,49 +315,31 @@
                         questionDiv.appendChild(buttonContainer);
 
                     } else if (item.type === 'number') {
-                         const input = document.createElement('input');
-                         input.type = 'number';
-                         input.id = `input-${item.id}`;
-                         input.placeholder = item.placeholder;
-                         input.className = 'mt-1 block w-full pl-3 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md shadow-sm';
-                         input.value = userAnswers[item.id] || '';
-                         questionDiv.appendChild(input);
-                    } else if (item.type === 'range') {
-                        const sliderWrapper = document.createElement('div');
-                        sliderWrapper.className = 'flex items-center gap-4 mt-2';
-
+                        const inputWrapper = document.createElement('div');
+                        inputWrapper.className = 'relative mt-2 rounded-md shadow-sm';
+                        
                         const input = document.createElement('input');
-                        input.type = 'range';
+                        input.type = 'number';
                         input.id = `input-${item.id}`;
-                        input.min = item.min;
-                        input.max = item.max;
-                        input.value = userAnswers[item.id] || item.defaultValue;
-                        input.className = 'w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600';
+                        input.placeholder = item.placeholder;
+                        input.className = 'block w-full pl-4 pr-16 py-3 border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 sm:text-lg';
+                        input.value = userAnswers[item.id] || '';
                         
-                        const valueDisplay = document.createElement('div');
-                        valueDisplay.className = 'flex-shrink-0 w-20 text-center bg-gray-100 p-2 rounded-md';
-                        const valueSpan = document.createElement('span');
-                        valueSpan.className = 'text-lg font-bold text-gray-800';
-                        valueSpan.textContent = input.value;
-                        const unitSpan = document.createElement('span');
-                        unitSpan.className = 'ml-1 text-sm text-gray-500';
-                        unitSpan.textContent = item.unit;
-                        
-                        valueDisplay.appendChild(valueSpan);
-                        valueDisplay.appendChild(unitSpan);
-
+                        // Salva a resposta do usuário a cada digitação
                         input.oninput = () => {
-                            valueSpan.textContent = input.value;
                             userAnswers[item.id] = input.value;
                         };
-
-                        if (!userAnswers[item.id]) {
-                            userAnswers[item.id] = input.value;
-                        }
-
-                        sliderWrapper.appendChild(input);
-                        sliderWrapper.appendChild(valueDisplay);
-                        questionDiv.appendChild(sliderWrapper);
+                        
+                        const unitDiv = document.createElement('div');
+                        unitDiv.className = 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4';
+                        const unitSpan = document.createElement('span');
+                        unitSpan.className = 'text-gray-500 sm:text-md';
+                        unitSpan.textContent = item.unit;
+                        
+                        unitDiv.appendChild(unitSpan);
+                        inputWrapper.appendChild(input);
+                        inputWrapper.appendChild(unitDiv);
+                        questionDiv.appendChild(inputWrapper);
                     }
                     
                     questionContainer.appendChild(questionDiv);
@@ -641,6 +623,7 @@
 
 </body>
 </html>
+
 
 
 
