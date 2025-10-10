@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliador de Risco Cardíaco Inteligente</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para o gráfico de radar -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Fontes do Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilo customizado para animações suaves */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .fade-out {
+            animation: fadeOut 0.5s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-10 transition-all duration-500">
+
+        <!-- Seção Inicial -->
+        <div id="start-section" class="text-center fade-in">
+            <div class="flex justify-center mb-4">
+                 <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Avaliador de Risco Cardíaco</h1>
+            <p class="text-gray-600 mb-6">Responda a algumas perguntas para gerar um perfil visual dos seus fatores de risco.</p>
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg mb-8 text-left">
+                <p class="font-bold">Aviso Importante</p>
+                <p class="text-sm">Esta é uma ferramenta educacional e <strong class="underline">não substitui um diagnóstico médico</strong>. As informações geradas são para fins de conscientização. Sempre consulte um cardiologista ou clínico geral para avaliações de saúde.</p>
+            </div>
+            <button id="start-btn" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 duration-300">
+                Iniciar Avaliação
+            </button>
+        </div>
+
+        <!-- Seção do Questionário -->
+        <div id="quiz-section" class="hidden">
+            <div class="flex items-center justify-between mb-6">
+                 <h2 id="question-title" class="text-xl sm:text-2xl font-bold text-gray-900"></h2>
+                 <span id="question-counter" class="text-sm font-semibold text-gray-500 bg-gray-200 px-3 py-1 rounded-full"></span>
+            </div>
+           
+            <div id="question-container" class="space-y-4 mb-8">
+                <!-- Perguntas serão injetadas aqui -->
+            </div>
+            <div id="validation-message" class="hidden text-sm text-center text-red-600 p-3 bg-red-100 rounded-lg my-4">Por favor, responda a todas as perguntas para continuar.</div>
+            <div class="flex justify-between items-center">
+                <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors duration-300">Voltar</button>
+                <button id="next-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 duration-300">Avançar</button>
+            </div>
+             <div class="w-full bg-gray-200 rounded-full h-2.5 mt-6">
+                <div id="progress-bar" class="bg-red-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Seção de Resultados -->
+        <div id="results-section" class="hidden text-center">
+             <div class="flex justify-center mb-4">
+                 <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Seu Perfil de Risco Cardíaco</h1>
+            <p class="text-gray-600 mb-8">Este gráfico representa seus fatores de risco. Quanto mais distante do centro, maior a atenção necessária para aquele eixo.</p>
+            
+            <div id="risk-classification" class="mb-8 p-4 rounded-lg text-center transition-all duration-500">
+                <p id="risk-level" class="text-2xl sm:text-3xl font-bold mt-1"></p>
+                <p id="risk-description" class="text-gray-600 mt-2 text-sm sm:text-base"></p>
+            </div>
+
+            <div class="w-full max-w-lg mx-auto mb-8">
+                <canvas id="radarChart"></canvas>
+            </div>
+
+            <div id="recommendations" class="text-left bg-gray-50 p-6 rounded-lg">
+                 <h3 class="text-xl font-bold text-gray-800 mb-4">Análise e Recomendações Gerais</h3>
+                 <div id="recommendations-text" class="space-y-4 text-gray-700"></div>
+            </div>
+             <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg mt-8 text-left">
+                <p class="font-bold">Lembre-se!</p>
+                <p class="text-sm">Leve este resultado a um médico. Apenas um profissional pode interpretar seus dados corretamente e solicitar os exames necessários para um diagnóstico preciso.</p>
+            </div>
+            <button id="restart-btn" class="mt-8 w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 duration-300">
+                Refazer Avaliação
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Definição das perguntas do questionário
+            const questions = [
+                { 
+                    key: 'perfil',
+                    title: 'Perfil Básico',
+                    items: [
+                        { id: 'idade', text: 'Qual sua idade?', type: 'range', min: 20, max: 90, defaultValue: 45, unit: 'anos' },
+                        { id: 'sexo', text: 'Qual seu sexo biológico?', type: 'select', options: ['Feminino', 'Masculino'], values: [1, 2] }, // Fator de risco pode variar
+                        { id: 'altura', text: 'Sua altura', type: 'range', min: 120, max: 220, defaultValue: 170, unit: 'cm' },
+                        { id: 'peso', text: 'Seu peso', type: 'range', min: 30, max: 200, defaultValue: 75, unit: 'kg' }
+                    ]
+                },
+                {
+                    key: 'habitos',
+                    title: 'Hábitos e Estilo de Vida',
+                    items: [
+                        { id: 'fumante', text: 'Você fuma ou fumou nos últimos 5 anos?', type: 'select', options: ['Não', 'Ex-fumante (parou há mais de 5 anos)', 'Sim, ocasionalmente', 'Sim, diariamente'], values: [0, 3, 7, 10] },
+                        { id: 'alcool', text: 'Com que frequência você consome bebidas alcoólicas?', type: 'select', options: ['Nunca ou raramente', '1 a 2 vezes por semana', '3 a 5 vezes por semana', 'Quase todos os dias'], values: [0, 3, 6, 9] },
+                        { id: 'dieta', text: 'Como você classifica sua alimentação?', type: 'select', options: ['Muito saudável (frutas, vegetais, grãos)', 'Geralmente saudável', 'Pouco saudável (muita gordura, açúcar, sal)', 'Muito processada e desbalanceada'], values: [1, 4, 8, 10] }
+                    ]
+                },
+                {
+                    key: 'atividade',
+                    title: 'Atividade Física',
+                    items: [
+                        { id: 'exercicio', text: 'Com que frequência você pratica atividade física moderada (30 min)?', type: 'select', options: ['5 ou mais vezes por semana', '3 a 4 vezes por semana', '1 a 2 vezes por semana', 'Raramente ou nunca'], values: [0, 3, 7, 10] }
+                    ]
+                },
+                {
+                    key: 'historico',
+                    title: 'Histórico Familiar e Pessoal',
+                    items: [
+                        { id: 'familia', text: 'Pai, mãe ou irmãos tiveram infarto ou AVC antes dos 55 anos (homens) ou 65 anos (mulheres)?', type: 'select', options: ['Não', 'Não sei informar', 'Sim'], values: [0, 5, 10] },
+                        { id: 'pressao', text: 'Você tem diagnóstico de pressão alta (hipertensão)?', type: 'select', options: ['Não', 'Sim, controlada com medicação', 'Sim, não controlada'], values: [0, 5, 10] },
+                        { id: 'diabetes', text: 'Você tem diagnóstico de diabetes?', type: 'select', options: ['Não', 'Pré-diabetes ou diabetes gestacional', 'Sim, controlado', 'Sim, não controlado'], values: [0, 4, 7, 10] },
+                        { id: 'colesterol', text: 'Você tem diagnóstico de colesterol alto?', type: 'select', options: ['Não', 'Sim, controlado', 'Sim, não controlado'], values: [0, 5, 10] }
+                    ]
+                },
+                {
+                    key: 'sintomas',
+                    title: 'Sintomas Recentes (últimos 6 meses)',
+                    items: [
+                        { id: 'dor_peito', text: 'Sentiu dor ou desconforto no peito durante esforço físico ou estresse?', type: 'select', options: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'], values: [0, 4, 8, 10] },
+                        { id: 'falta_ar', text: 'Sentiu falta de ar inexplicável, mesmo em repouso ou com pouco esforço?', type: 'select', options: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'], values: [0, 3, 7, 10] },
+                        { id: 'palpitacoes', text: 'Sentiu o coração bater de forma irregular, muito rápido ou "falhando"?', type: 'select', options: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'], values: [0, 3, 7, 10] },
+                        { id: 'inchaco', text: 'Percebeu inchaço nos tornozelos, pés ou pernas?', type: 'select', options: ['Não', 'Sim, leve e ocasional', 'Sim, persistente'], values: [0, 5, 10] },
+                        { id: 'tontura', text: 'Sentiu tonturas ou teve desmaios repentinos?', type: 'select', options: ['Não', 'Sim, raramente', 'Sim, algumas vezes'], values: [0, 5, 10] }
+                    ]
+                }
+            ];
+
+            // Elementos da DOM
+            const startSection = document.getElementById('start-section');
+            const quizSection = document.getElementById('quiz-section');
+            const resultsSection = document.getElementById('results-section');
+            const startBtn = document.getElementById('start-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const questionTitle = document.getElementById('question-title');
+            const questionCounter = document.getElementById('question-counter');
+            const questionContainer = document.getElementById('question-container');
+            const progressBar = document.getElementById('progress-bar');
+            
+            let currentQuestionIndex = 0;
+            const userAnswers = {};
+            let radarChartInstance = null;
+            
+            // Função para iniciar o quiz
+            startBtn.addEventListener('click', () => {
+                startSection.classList.add('fade-out');
+                setTimeout(() => {
+                    startSection.classList.add('hidden');
+                    startSection.classList.remove('fade-out');
+                    quizSection.classList.remove('hidden');
+                    quizSection.classList.add('fade-in');
+                    displayQuestion();
+                }, 500);
+            });
+            
+            // Função para reiniciar o quiz
+            restartBtn.addEventListener('click', () => {
+                resultsSection.classList.add('fade-out');
+                setTimeout(() => {
+                    resultsSection.classList.add('hidden');
+                    resultsSection.classList.remove('fade-out');
+                    startSection.classList.remove('hidden');
+                    startSection.classList.add('fade-in');
+                    currentQuestionIndex = 0;
+                    Object.keys(userAnswers).forEach(key => delete userAnswers[key]);
+                    if(radarChartInstance) radarChartInstance.destroy();
+                }, 500);
+            });
+
+            // Navegação do quiz
+            nextBtn.addEventListener('click', () => {
+                if(saveCurrentAnswers()){
+                    currentQuestionIndex++;
+                    if (currentQuestionIndex < questions.length) {
+                        displayQuestion();
+                    } else {
+                        showResults();
+                    }
+                }
+            });
+
+            prevBtn.addEventListener('click', () => {
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    displayQuestion();
+                }
+            });
+
+            // Função para salvar as respostas atuais
+            function saveCurrentAnswers() {
+                const currentGroup = questions[currentQuestionIndex];
+                let allAnswered = true;
+                const validationMessage = document.getElementById('validation-message');
+                validationMessage.classList.add('hidden'); // Oculta a mensagem ao verificar novamente
+
+                currentGroup.items.forEach(item => {
+                    const input = document.getElementById(`input-${item.id}`);
+                    if(input.value === ''){
+                        allAnswered = false;
+                        input.classList.add('border-red-500');
+                    } else {
+                        input.classList.remove('border-red-500');
+                        userAnswers[item.id] = input.value;
+                    }
+                });
+                if(!allAnswered) {
+                    validationMessage.classList.remove('hidden'); // Mostra a mensagem de validação
+                }
+                return allAnswered;
+            }
+
+            // Função para exibir a pergunta
+            function displayQuestion() {
+                const questionGroup = questions[currentQuestionIndex];
+                questionTitle.textContent = questionGroup.title;
+                questionCounter.textContent = `${currentQuestionIndex + 1} / ${questions.length}`;
+                questionContainer.innerHTML = '';
+
+                questionGroup.items.forEach(item => {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'mb-4';
+                    
+                    const label = document.createElement('label');
+                    label.htmlFor = `input-${item.id}`;
+                    label.className = 'block text-md font-medium text-gray-700 mb-2';
+                    label.textContent = item.text;
+                    questionDiv.appendChild(label);
+
+                    if (item.type === 'select') {
+                        // Input oculto para armazenar o valor da resposta
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.id = `input-${item.id}`;
+                        hiddenInput.value = userAnswers[item.id] || '';
+                        questionDiv.appendChild(hiddenInput);
+
+                        const buttonContainer = document.createElement('div');
+                        const optionCount = item.options.length;
+                        // Ajusta o layout dos botões com base na quantidade de opções
+                        const gridClasses = optionCount <= 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-2';
+                        buttonContainer.className = `grid ${gridClasses} gap-3 mt-2`;
+                        
+                        item.options.forEach((option, index) => {
+                            const button = document.createElement('button');
+                            button.type = 'button';
+                            button.textContent = option;
+                            const value = item.values[index];
+                            button.dataset.value = value;
+
+                            const baseClasses = 'w-full text-center p-3 rounded-lg border-2 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400';
+                            const defaultClasses = 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400';
+                            const selectedClasses = 'bg-red-600 border-red-700 text-white shadow-lg scale-105';
+                            
+                            // Define o estilo inicial do botão
+                            button.className = (hiddenInput.value == value) 
+                                ? `${baseClasses} ${selectedClasses}`
+                                : `${baseClasses} ${defaultClasses}`;
+
+                            button.addEventListener('click', () => {
+                                // Define o valor no input oculto
+                                hiddenInput.value = value;
+                                userAnswers[item.id] = value;
+
+                                // Reseta o estilo de todos os botões no grupo
+                                buttonContainer.querySelectorAll('button').forEach(btn => {
+                                    btn.className = `${baseClasses} ${defaultClasses}`;
+                                });
+
+                                // Aplica o estilo de selecionado ao botão clicado
+                                button.className = `${baseClasses} ${selectedClasses}`;
+                            });
+                            buttonContainer.appendChild(button);
+                        });
+                        questionDiv.appendChild(buttonContainer);
+
+                    } else if (item.type === 'number') {
+                         const input = document.createElement('input');
+                         input.type = 'number';
+                         input.id = `input-${item.id}`;
+                         input.placeholder = item.placeholder;
+                         input.className = 'mt-1 block w-full pl-3 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md shadow-sm';
+                         input.value = userAnswers[item.id] || '';
+                         questionDiv.appendChild(input);
+                    } else if (item.type === 'range') {
+                        const sliderWrapper = document.createElement('div');
+                        sliderWrapper.className = 'flex items-center gap-4 mt-2';
+
+                        const input = document.createElement('input');
+                        input.type = 'range';
+                        input.id = `input-${item.id}`;
+                        input.min = item.min;
+                        input.max = item.max;
+                        input.value = userAnswers[item.id] || item.defaultValue;
+                        input.className = 'w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600';
+                        
+                        const valueDisplay = document.createElement('div');
+                        valueDisplay.className = 'flex-shrink-0 w-20 text-center bg-gray-100 p-2 rounded-md';
+                        const valueSpan = document.createElement('span');
+                        valueSpan.className = 'text-lg font-bold text-gray-800';
+                        valueSpan.textContent = input.value;
+                        const unitSpan = document.createElement('span');
+                        unitSpan.className = 'ml-1 text-sm text-gray-500';
+                        unitSpan.textContent = item.unit;
+                        
+                        valueDisplay.appendChild(valueSpan);
+                        valueDisplay.appendChild(unitSpan);
+
+                        input.oninput = () => {
+                            valueSpan.textContent = input.value;
+                            userAnswers[item.id] = input.value;
+                        };
+
+                        if (!userAnswers[item.id]) {
+                            userAnswers[item.id] = input.value;
+                        }
+
+                        sliderWrapper.appendChild(input);
+                        sliderWrapper.appendChild(valueDisplay);
+                        questionDiv.appendChild(sliderWrapper);
+                    }
+                    
+                    questionContainer.appendChild(questionDiv);
+                });
+                
+                prevBtn.style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
+                nextBtn.textContent = currentQuestionIndex === questions.length - 1 ? 'Ver Resultados' : 'Avançar';
+                
+                const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+                progressBar.style.width = `${progress}%`;
+            }
+
+            // Função para calcular scores e mostrar resultados
+            function showResults() {
+                quizSection.classList.add('fade-out');
+                setTimeout(() => {
+                    quizSection.classList.add('hidden');
+                    quizSection.classList.remove('fade-out');
+                    
+                    resultsSection.classList.remove('hidden');
+                    resultsSection.classList.add('fade-in');
+                    
+                    const scores = calculateScores();
+                    generateOverallRisk(scores);
+                    createRadarChart(scores);
+                    generateRecommendations(scores);
+                }, 500);
+            }
+
+            function calculateScores() {
+                // Eixos do gráfico de radar
+                const scores = {
+                    'Fatores Base': 0,
+                    'Peso/IMC': 0,
+                    'Sedentarismo': 0,
+                    'Hábitos': 0,
+                    'Condições Prévias': 0,
+                    'Histórico Familiar': 0,
+                    'Sintomas': 0
+                };
+
+                // 1. Fatores Base (Idade e Sexo)
+                const age = parseInt(userAnswers.idade) || 0;
+                const sex = parseInt(userAnswers.sexo) || 0;
+                let ageScore = 0;
+                if (age < 40) ageScore = 1;
+                else if (age < 50) ageScore = 4;
+                else if (age < 60) ageScore = 7;
+                else ageScore = 10;
+                
+                let baseFactorScore = ageScore;
+                if (sex === 2 && age > 45) { // Risco adicional para homens acima de 45
+                    baseFactorScore += 2;
+                }
+                scores['Fatores Base'] = Math.min(baseFactorScore, 10);
+                
+                // 2. Calcular IMC
+                const height = parseFloat(userAnswers.altura) / 100;
+                const weight = parseFloat(userAnswers.peso);
+                if (height > 0 && weight > 0) {
+                    const bmi = weight / (height * height);
+                    if (bmi < 18.5) scores['Peso/IMC'] = 2;
+                    else if (bmi < 25) scores['Peso/IMC'] = 0;
+                    else if (bmi < 30) scores['Peso/IMC'] = 5;
+                    else if (bmi < 35) scores['Peso/IMC'] = 8;
+                    else scores['Peso/IMC'] = 10;
+                }
+
+                // 3. Sedentarismo
+                scores['Sedentarismo'] = parseInt(userAnswers.exercicio) || 0;
+
+                // 4. Hábitos (fumo, álcool, dieta) - com fallback para 0 para evitar NaN
+                const fumanteScore = parseInt(userAnswers.fumante) || 0;
+                const alcoolScore = parseInt(userAnswers.alcool) || 0;
+                const dietaScore = parseInt(userAnswers.dieta) || 0;
+                scores['Hábitos'] = (fumanteScore + alcoolScore + dietaScore) / 3;
+
+                // 5. Condições Prévias (pressão, diabetes, colesterol) - com fallback para 0 para evitar NaN
+                const pressaoScore = parseInt(userAnswers.pressao) || 0;
+                const diabetesScore = parseInt(userAnswers.diabetes) || 0;
+                const colesterolScore = parseInt(userAnswers.colesterol) || 0;
+                scores['Condições Prévias'] = (pressaoScore + diabetesScore + colesterolScore) / 3;
+                
+                // 6. Histórico Familiar
+                scores['Histórico Familiar'] = parseInt(userAnswers.familia) || 0;
+                
+                // 7. Sintomas - com fallback para 0 para evitar NaN
+                const dorPeitoScore = parseInt(userAnswers.dor_peito) || 0;
+                const faltaArScore = parseInt(userAnswers.falta_ar) || 0;
+                const palpitacoesScore = parseInt(userAnswers.palpitacoes) || 0;
+                const inchacoScore = parseInt(userAnswers.inchaco) || 0;
+                const tonturaScore = parseInt(userAnswers.tontura) || 0;
+                scores['Sintomas'] = (dorPeitoScore + faltaArScore + palpitacoesScore + inchacoScore + tonturaScore) / 5;
+                
+                // Normaliza todos os scores para uma escala de 0 a 10
+                Object.keys(scores).forEach(key => {
+                    scores[key] = Math.round(scores[key]);
+                    if(scores[key] > 10) scores[key] = 10;
+                    if(scores[key] < 0) scores[key] = 0;
+                });
+                
+                return scores;
+            }
+
+            // Função para criar o gráfico de radar
+            function createRadarChart(scores) {
+                const ctx = document.getElementById('radarChart').getContext('2d');
+                const data = {
+                    labels: Object.keys(scores),
+                    datasets: [{
+                        label: 'Seu Perfil de Risco',
+                        data: Object.values(scores),
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        borderColor: 'rgba(220, 38, 38, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(220, 38, 38, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(220, 38, 38, 1)'
+                    }]
+                };
+
+                const options = {
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                },
+                                color: '#374151'
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                max: 10,
+                                stepSize: 2,
+                                backdropColor: 'rgba(255, 255, 255, 0.75)',
+                                color: '#6b7280'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: true
+                };
+                
+                if (radarChartInstance) {
+                    radarChartInstance.destroy();
+                }
+
+                radarChartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: data,
+                    options: options
+                });
+            }
+
+            function generateOverallRisk(scores) {
+                const riskLevelEl = document.getElementById('risk-level');
+                const riskDescriptionEl = document.getElementById('risk-description');
+                const riskContainer = document.getElementById('risk-classification');
+
+                const weights = {
+                    'Sintomas': 3,
+                    'Condições Prévias': 2.5,
+                    'Fatores Base': 2,
+                    'Peso/IMC': 1.5,
+                    'Hábitos': 1.5,
+                    'Sedentarismo': 1,
+                    'Histórico Familiar': 0.5
+                };
+                const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+
+                let weightedScore = 0;
+                for (const key in scores) {
+                    if (weights[key]) {
+                        weightedScore += (scores[key] || 0) * weights[key];
+                    }
+                }
+
+                const finalScore = weightedScore / totalWeight;
+
+                let level = '';
+                let description = '';
+                let colors = ''; 
+
+                if (finalScore <= 2.5) {
+                    level = 'Risco Baixo';
+                    description = 'Seu perfil indica um baixo risco cardiovascular. Continue com os hábitos saudáveis e acompanhamento de rotina.';
+                    colors = 'bg-green-100 text-green-800';
+                } else if (finalScore <= 5) {
+                    level = 'Risco Moderado';
+                    description = 'Existem fatores de risco que merecem atenção. Mudanças no estilo de vida e acompanhamento médico são recomendados.';
+                    colors = 'bg-yellow-100 text-yellow-800';
+                } else if (finalScore <= 7.5) {
+                    level = 'Risco Alto';
+                    description = 'Seu perfil indica um risco cardiovascular elevado. É fundamental uma consulta com um cardiologista para um plano de ação.';
+                    colors = 'bg-orange-100 text-orange-800';
+                } else {
+                    level = 'Risco Muito Alto';
+                    description = 'Seu perfil apresenta múltiplos fatores de risco. A busca por um cardiologista é urgente para uma avaliação aprofundada.';
+                    colors = 'bg-red-100 text-red-800';
+                }
+                
+                riskContainer.className = `mb-8 p-6 rounded-lg text-center ${colors}`;
+                riskLevelEl.textContent = level;
+                riskDescriptionEl.textContent = description;
+            }
+
+            // Função para gerar recomendações
+            function generateRecommendations(scores) {
+                const container = document.getElementById('recommendations-text');
+                container.innerHTML = '';
+                
+                const highRiskThreshold = 7;
+                const moderateRiskThreshold = 4;
+
+                const messages = {
+                    'Sintomas': {
+                        high: 'Seu score de <strong>Sintomas</strong> é elevado. É <strong>altamente recomendável</strong> procurar um cardiologista para uma avaliação detalhada. Exames como Eletrocardiograma (ECG), Teste Ergométrico ou Ecocardiograma podem ser considerados pelo médico para investigar as causas.',
+                        moderate: 'Você relatou alguns <strong>sintomas</strong> que merecem atenção. Monitore-os e mencione-os na sua próxima consulta médica. Manter um diário dos sintomas pode ajudar.'
+                    },
+                    'Condições Prévias': {
+                        high: 'O controle das suas <strong>Condições Prévias</strong> (pressão alta, diabetes, colesterol) parece ser um ponto crítico. Converse com seu médico sobre otimizar o tratamento. A adesão correta à medicação e ao monitoramento é fundamental.',
+                        moderate: 'Suas <strong>Condições Prévias</strong> representam um fator de risco moderado. Garanta que você está fazendo o acompanhamento médico regular e seguindo o tratamento prescrito.'
+                    },
+                     'Peso/IMC': {
+                        high: 'Seu <strong>Peso/IMC</strong> está na faixa de risco. A perda de peso, mesmo que modesta (5-10%), pode trazer grandes benefícios para a saúde do coração. Um nutricionista pode te ajudar a criar um plano alimentar sustentável.',
+                        moderate: 'Seu <strong>Peso/IMC</strong> indica sobrepeso. Pequenas mudanças na dieta e na rotina de exercícios podem fazer uma grande diferença para prevenir problemas futuros.'
+                    },
+                    'Hábitos': {
+                        high: 'Seus <strong>Hábitos</strong> (dieta, fumo, álcool) são um ponto de grande impacto no seu risco. Parar de fumar é a medida isolada mais eficaz. Melhorar a dieta e moderar o álcool também são cruciais. Procure ajuda profissional se necessário.',
+                        moderate: 'Existem oportunidades de melhoria nos seus <strong>Hábitos</strong>. Considerar uma dieta mais balanceada, reduzir o álcool ou o cigarro pode diminuir significativamente seu risco cardiovascular.'
+                    },
+                    'Sedentarismo': {
+                        high: 'O <strong>sedentarismo</strong> é um grande fator de risco. Comece com atividades leves, como caminhadas diárias de 20-30 minutos. A regularidade é mais importante que a intensidade no início. Consulte um médico antes de iniciar atividades intensas.',
+                        moderate: 'Aumentar a frequência ou a intensidade da sua atividade física pode trazer benefícios adicionais. Tente incorporar mais movimento no seu dia a dia.'
+                    },
+                    'Histórico Familiar': {
+                        high: 'Seu <strong>Histórico Familiar</strong> aumenta sua predisposição a doenças cardíacas. Isso torna o controle dos outros fatores de risco (como dieta, exercício e não fumar) ainda mais importante para você. Check-ups regulares são essenciais.',
+                        moderate: ''
+                    }
+                };
+                
+                let hasRecommendations = false;
+                for (const key in scores) {
+                    let message = '';
+                    if (scores[key] >= highRiskThreshold && messages[key]?.high) {
+                        message = messages[key].high;
+                        hasRecommendations = true;
+                    } else if (scores[key] >= moderateRiskThreshold && messages[key]?.moderate) {
+                        message = messages[key].moderate;
+                         hasRecommendations = true;
+                    }
+                    
+                    if (message) {
+                        const p = document.createElement('p');
+                        p.innerHTML = `<span class="font-semibold text-red-600">&#10148;</span> ${message}`;
+                        container.appendChild(p);
+                    }
+                }
+
+                if (!hasRecommendations) {
+                     const p = document.createElement('p');
+                     p.innerHTML = 'Seu perfil de risco geral parece baixo com base nas suas respostas. Continue com seus hábitos saudáveis e mantenha o acompanhamento médico de rotina. A prevenção é sempre o melhor caminho!';
+                     container.appendChild(p);
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
+
+
+
+
