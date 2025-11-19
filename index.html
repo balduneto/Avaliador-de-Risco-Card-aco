@@ -1,633 +1,820 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avaliador de Risco Cardíaco Inteligente</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js para o gráfico de radar -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Fontes do Google -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Estilo customizado para animações suaves */
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        .fade-out {
-            animation: fadeOut 0.5s ease-in-out forwards;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-10px); }
-        }
-    </style>
-</head>
-<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+import React, { useState } from 'react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { Rocket, Brain, Leaf, Users, TrendingUp, MapPin, CheckCircle, RefreshCcw, Info, Check, User, Briefcase, ShieldAlert, Target, Zap, AlertTriangle, DollarSign, BookOpen, Building2, GraduationCap, Lightbulb, ArrowRight, Star, Crown, Fingerprint } from 'lucide-react';
 
-    <div class="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-10 transition-all duration-500">
+// --- DADOS E LÓGICA DO SISTEMA ---
 
-        <!-- Seção Inicial -->
-        <div id="start-section" class="text-center fade-in">
-            <div class="flex justify-center mb-4">
-                 <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-            </div>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Avaliador de Risco Cardíaco</h1>
-            <p class="text-gray-600 mb-6">Responda a algumas perguntas para gerar um perfil visual dos seus fatores de risco.</p>
-            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg mb-8 text-left">
-                <p class="font-bold">Aviso Importante</p>
-                <p class="text-sm">Esta é uma ferramenta educacional e <strong class="underline">não substitui um diagnóstico médico</strong>. As informações geradas são para fins de conscientização. Sempre consulte um cardiologista ou clínico geral para avaliações de saúde.</p>
-            </div>
-            <button id="start-btn" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 duration-300">
-                Iniciar Avaliação
-            </button>
-        </div>
+const PERSONAL_LEVELS = [
+  { id: 'none', label: 'Sem Experiência', desc: 'Buscando 1ª oportunidade ou transição total.' },
+  { id: 'jr', label: 'Júnior', desc: 'Executa tarefas com supervisão e aprende processos.' },
+  { id: 'pl', label: 'Pleno', desc: 'Tem autonomia, resolve problemas e domina a função.' },
+  { id: 'sr', label: 'Sênior', desc: 'Lidera, cria estratégias e toma decisões complexas.' }
+];
 
-        <!-- Seção do Questionário -->
-        <div id="quiz-section" class="hidden">
-            <div class="flex items-center justify-between mb-6">
-                 <h2 id="question-title" class="text-xl sm:text-2xl font-bold text-gray-900"></h2>
-                 <span id="question-counter" class="text-sm font-semibold text-gray-500 bg-gray-200 px-3 py-1 rounded-full"></span>
-            </div>
-           
-            <div id="question-container" class="space-y-4 mb-8">
-                <!-- Perguntas serão injetadas aqui -->
-            </div>
-            <div id="validation-message" class="hidden text-sm text-center text-red-600 p-3 bg-red-100 rounded-lg my-4">Por favor, responda a todas as perguntas para continuar.</div>
-            <div class="flex justify-between items-center">
-                <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors duration-300">Voltar</button>
-                <button id="next-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 duration-300">Avançar</button>
-            </div>
-             <div class="w-full bg-gray-200 rounded-full h-2.5 mt-6">
-                <div id="progress-bar" class="bg-red-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-        </div>
+const OPTIONS_META = {
+  afinidades: {
+    title: "1. Afinidades e Interesses",
+    description: "O que atrai sua curiosidade natural? Selecione os temas que você consome espontaneamente.",
+    icon: Leaf
+  },
+  habilidades: {
+    title: "2. Habilidades Técnicas",
+    description: "O que você já executa com competência? Marque ferramentas ou técnicas que domina.",
+    icon: Brain
+  },
+  competencias: {
+    title: "3. Estilo Comportamental",
+    description: "Como você reage a desafios? Identifique seus padrões em situações de pressão.",
+    icon: Users
+  },
+  aptidoes: {
+    title: "4. Talentos Naturais",
+    description: "O que você faz com fluidez? Escolha atividades que parecem fáceis para você.",
+    icon: Rocket
+  }
+};
 
-        <!-- Seção de Resultados -->
-        <div id="results-section" class="hidden text-center">
-             <div class="flex justify-center mb-4">
-                 <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </div>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Seu Perfil de Risco Cardíaco</h1>
-            <p class="text-gray-600 mb-8">Este gráfico representa seus fatores de risco. Quanto mais distante do centro, maior a atenção necessária para aquele eixo.</p>
-            
-            <div id="risk-classification" class="mb-8 p-4 rounded-lg text-center transition-all duration-500">
-                <p id="risk-level" class="text-2xl sm:text-3xl font-bold mt-1"></p>
-                <p id="risk-description" class="text-gray-600 mt-2 text-sm sm:text-base"></p>
-            </div>
+// MAPA DE DNA: Adjetivos e Substantivos baseados nos eixos
+const DNA_MAP = {
+  inovacao: { adj: "Inovador", noun: "Visionário", prefix: "Tech" },
+  analise: { adj: "Analítico", noun: "Estrategista", prefix: "Data" },
+  lideranca: { adj: "Diretivo", noun: "Líder", prefix: "Chief" },
+  social: { adj: "Empático", noun: "Conector", prefix: "Human" },
+  sustentabilidade: { adj: "Sustentável", noun: "Guardião", prefix: "Eco" },
+  praticidade: { adj: "Pragmático", noun: "Executor", prefix: "Agile" },
+  criatividade: { adj: "Criativo", noun: "Creator", prefix: "Design" }
+};
 
-            <div class="w-full max-w-lg mx-auto mb-8">
-                <canvas id="radarChart"></canvas>
-            </div>
+// RECOMENDAÇÕES FILTRADAS: APENAS SENAI, SEBRAE, IEL
+const DEVELOPMENT_GUIDE = {
+  inovacao: {
+    gapTitle: "Gap de Inovação Digital",
+    actions: [
+      { type: "Tecnologia", name: "Cursos de Indústria 4.0 e Robótica", provider: "SENAI Goiás" },
+      { type: "Gestão", name: "Consultoria em Inovação e Startups", provider: "SEBRAE Goiás" },
+      { type: "Estratégia", name: "Gestão da Inovação Corporativa", provider: "IEL Goiás" }
+    ]
+  },
+  analise: {
+    gapTitle: "Gap de Análise de Dados",
+    actions: [
+      { type: "Técnico", name: "Técnico em Desenvolvimento de Sistemas", provider: "SENAI Goiás" },
+      { type: "Negócios", name: "Inteligência de Mercado e Análise de Dados", provider: "SEBRAE Goiás" },
+      { type: "Gestão", name: "Qualificação em Tomada de Decisão", provider: "IEL Goiás" }
+    ]
+  },
+  lideranca: {
+    gapTitle: "Gap de Liderança Estratégica",
+    actions: [
+      { type: "Imersão", name: "Empretec (Metodologia ONU)", provider: "SEBRAE Goiás" },
+      { type: "Executivo", name: "Programa de Desenvolvimento de Líderes (PDL)", provider: "IEL Goiás" },
+      { type: "Industrial", name: "Liderança para Gestores Industriais", provider: "SENAI Goiás" }
+    ]
+  },
+  social: {
+    gapTitle: "Gap de Habilidades Sociais",
+    actions: [
+      { type: "Comportamental", name: "Desenvolvimento de Soft Skills", provider: "IEL Goiás" },
+      { type: "Vendas", name: "Técnicas de Negociação e Atendimento", provider: "SEBRAE Goiás" },
+      { type: "Equipe", name: "Gestão de Pessoas e Conflitos", provider: "SENAI/IEL" }
+    ]
+  },
+  sustentabilidade: {
+    gapTitle: "Gap de Consciência Verde",
+    actions: [
+      { type: "Técnico", name: "Eficiência Energética e Energias Renováveis", provider: "SENAI Goiás" },
+      { type: "Negócios", name: "Consultoria ESG para Pequenos Negócios", provider: "SEBRAE Goiás" },
+      { type: "Projetos", name: "Gestão Ambiental na Indústria", provider: "IEL Goiás" }
+    ]
+  },
+  praticidade: {
+    gapTitle: "Gap de Execução Prática",
+    actions: [
+      { type: "Processos", name: "Lean Manufacturing (Manufatura Enxuta)", provider: "SENAI Goiás" },
+      { type: "Gestão", name: "Gestão de Processos e Produtividade", provider: "SEBRAE Goiás" },
+      { type: "Estágio", name: "Programa de Estágio Supervisionado", provider: "IEL Goiás" }
+    ]
+  },
+  criatividade: {
+    gapTitle: "Gap de Inovação Criativa",
+    actions: [
+      { type: "Design", name: "Cursos de Design Gráfico e Modelagem", provider: "SENAI Goiás" },
+      { type: "Economia", name: "Empreendedorismo na Economia Criativa", provider: "SEBRAE Goiás" },
+      { type: "Inovação", name: "Design Thinking para Resolução de Problemas", provider: "IEL Goiás" }
+    ]
+  }
+};
 
-            <div id="recommendations" class="text-left bg-gray-50 p-6 rounded-lg">
-                 <h3 class="text-xl font-bold text-gray-800 mb-4">Análise e Recomendações Gerais</h3>
-                 <div id="recommendations-text" class="space-y-4 text-gray-700"></div>
-            </div>
-             <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg mt-8 text-left">
-                <p class="font-bold">Lembre-se!</p>
-                <p class="text-sm">Leve este resultado a um médico. Apenas um profissional pode interpretar seus dados corretamente e solicitar os exames necessários para um diagnóstico preciso.</p>
-            </div>
-            <button id="restart-btn" class="mt-8 w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 duration-300">
-                Refazer Avaliação
-            </button>
-        </div>
+const OPTIONS = {
+  afinidades: [
+    { id: 'tec', label: 'Tecnologia e Inovação', axes: { inovacao: 5, analise: 4, social: 2 } },
+    { id: 'bio', label: 'Natureza e Biologia', axes: { sustentabilidade: 5, praticidade: 4, inovacao: 3 } },
+    { id: 'hum', label: 'Pessoas e Comunicação', axes: { social: 5, lideranca: 4, analise: 2 } },
+    { id: 'biz', label: 'Negócios e Estratégia', axes: { lideranca: 5, analise: 5, praticidade: 3 } },
+    { id: 'art', label: 'Criatividade e Design', axes: { criatividade: 5, inovacao: 4, praticidade: 2 } },
+  ],
+  habilidades: [
+    { id: 'dev', label: 'Lógica e Programação', axes: { inovacao: 4, analise: 5 } },
+    { id: 'gest', label: 'Gestão de Projetos', axes: { lideranca: 4, praticidade: 5 } },
+    { id: 'com', label: 'Oratória e Escrita', axes: { social: 5, lideranca: 3 } },
+    { id: 'manual', label: 'Habilidade Manual/Técnica', axes: { praticidade: 5, sustentabilidade: 3 } },
+    { id: 'analit', label: 'Análise de Dados', axes: { analise: 5, inovacao: 3 } },
+  ],
+  competencias: [
+    { id: 'adap', label: 'Adaptabilidade', axes: { inovacao: 3, social: 3 } },
+    { id: 'crit', label: 'Pensamento Crítico', axes: { analise: 4, lideranca: 3 } },
+    { id: 'emp', label: 'Inteligência Emocional', axes: { social: 5, lideranca: 4 } },
+    { id: 'res', label: 'Resolução de Problemas', axes: { praticidade: 5, analise: 4 } },
+  ],
+  aptidoes: [
+    { id: 'teach', label: 'Ensinar e Orientar', axes: { social: 5, lideranca: 2 } },
+    { id: 'create', label: 'Inventar e Construir', axes: { criatividade: 5, inovacao: 5 } },
+    { id: 'org', label: 'Organizar e Otimizar', axes: { praticidade: 5, analise: 4 } },
+    { id: 'care', label: 'Cuidar e Preservar', axes: { sustentabilidade: 5, social: 4 } },
+  ]
+};
+
+const CAREER_PATHS = {
+  tech_innovator: {
+    baseTitle: "Arquitetura de Futuros Digitais",
+    description: "Perfil analítico e inovador. Vê sistemas onde outros veem caos.",
+    detailedAnalysis: "Você possui uma mentalidade algorítmica. Diante de problemas, seu instinto é quebrar a complexidade em partes menores e buscar automação. Sua alta pontuação em Inovação sugere que você se frustra com processos repetitivos e obsoletos. No contexto de Goiás, isso é valioso para modernizar setores tradicionais.",
+    traditional: ["Desenvolvedor de Sistemas (SENAI)", "Analista de Suporte TI", "Administrador de Banco de Dados"],
+    future: ["Arquiteto de Soluções IoT para o Agro", "Engenheiro de Cibersegurança Industrial", "Analista de Big Data Logístico"],
+    goiasAdherence: 85,
+    goiasInsight: "Goiânia é um hub emergente de startups (GynTec). O setor de logística e AgroTech demanda digitalização pesada.",
+    topCities: [
+      { city: "Goiânia", reason: "Sede de grandes empresas de software e hubs de inovação (GynTec)." },
+      { city: "Rio Verde", reason: "Demanda por tecnologia de precisão no Agro." },
+      { city: "Anápolis", reason: "Tecnologia aplicada à indústria farmacêutica e logística." }
+    ],
+    salary: { junior: "R$ 3.500", pleno: "R$ 7.200", senior: "R$ 14.500+" },
+    sources: ["Glassdoor 2024", "Tech Report GO", "CAGED"],
+    swotBase: {
+      threat: "Obsolescência rápida de linguagens de código específicas.",
+      opportunity: "Hubs de inovação em Goiânia buscando talentos globais."
+    },
+    exclusiveTip: "Visite o Hub Goiás no Centro de Excelência ou o GynTec. Conecte-se com CTOs de Startups Locais."
+  },
+  agro_bio: {
+    baseTitle: "Bioeconomia e Agro 4.0",
+    description: "Conexão forte com sustentabilidade e praticidade. Otimiza a vida e a natureza.",
+    detailedAnalysis: "Seu perfil combina a paciência da observação biológica com o pragmatismo da engenharia. Você entende ciclos naturais e busca eficiência sem destruição. Em Goiás, este é o 'Perfil de Ouro', pois o estado busca transacionar de commodities brutas para produtos de alto valor agregado e sustentáveis.",
+    traditional: ["Técnico em Agronegócio (SENAI)", "Supervisor de Produção Sucroalcooleira", "Gestor Ambiental"],
+    future: ["Operador de Drones Agrícolas", "Gestor de Fazendas Conectadas (Agro 4.0)", "Especialista em Bioenergia"],
+    goiasAdherence: 99,
+    goiasInsight: "O PIB de Goiás é movido pelo Agro. A intersecção entre biologia e tecnologia é onde estão os maiores salários do estado.",
+    topCities: [
+      { city: "Rio Verde", reason: "Capital do Agronegócio e tecnologia de sementes." },
+      { city: "Jataí", reason: "Polo de produção de grãos e biocombustíveis." },
+      { city: "Cristalina", reason: "Referência em agricultura irrigada de alta tecnologia." }
+    ],
+    salary: { junior: "R$ 4.800", pleno: "R$ 9.500", senior: "R$ 18.000+" },
+    sources: ["FIEG", "IMEA", "AgroStat"],
+    swotBase: {
+      threat: "Mudanças climáticas extremas afetando a produtividade padrão.",
+      opportunity: "Créditos de carbono e certificação verde para exportação."
+    },
+    exclusiveTip: "Participe da Tecnoshow Comigo em Rio Verde. É onde os grandes contratos de tecnologia agrícola são fechados."
+  },
+  biz_leader: {
+    baseTitle: "Liderança Estratégica",
+    description: "Liderança e análise fortes. Toma decisões difíceis e guia equipes.",
+    detailedAnalysis: "Você tem um perfil executivo natural. Sua combinação de Liderança e Análise indica que você não apenas manda, mas decide com base em dados. Você tende a ver 'o todo' (Big Picture). O desafio em Goiás é profissionalizar empresas familiares e gerir a complexidade logística do Porto Seco.",
+    traditional: ["Gestor de Produção Industrial", "Coordenador de Logística (Porto Seco)", "Consultor Empresarial (SEBRAE)"],
+    future: ["Gestor de Cadeias de Suprimentos Globais", "Líder de Transformação Digital Industrial", "Gestor de Compliance e Governança"],
+    goiasAdherence: 90,
+    goiasInsight: "O eixo Anápolis-Goiânia é o coração industrial do Centro-Oeste. Há escassez de gestores qualificados para indústrias 4.0.",
+    topCities: [
+      { city: "Aparecida de Goiânia", reason: "Forte polo industrial e empresarial." },
+      { city: "Anápolis", reason: "Distrito Agroindustrial (DAIA) e Porto Seco." },
+      { city: "Catalão", reason: "Indústria automobilística e mineradora." }
+    ],
+    salary: { junior: "R$ 3.200", pleno: "R$ 6.800", senior: "R$ 15.000+" },
+    sources: ["Catho", "Guia Salarial Robert Half", "SINE-GO"],
+    swotBase: {
+      threat: "Automatização de gestão de processos via IA.",
+      opportunity: "Gestão de equipes híbridas e remotas em expansão."
+    },
+    exclusiveTip: "Busque mentorias no IEL Goiás focadas em sucessão familiar ou gestão industrial 4.0. O network no DAIA é crucial."
+  },
+  human_care: {
+    baseTitle: "Humanidades e Bem-Estar",
+    description: "Eixo social predominante. Entende pessoas, cuida e educa.",
+    detailedAnalysis: "Sua inteligência emocional é seu maior ativo. Em um mundo automatizado, a capacidade de conectar, curar e ensinar é insubstituível. Goiás tem um setor de serviços robusto e uma população em envelhecimento que demandará cuidados especializados e turismo de bem-estar.",
+    traditional: ["Gestor de RH e Talentos (IEL)", "Psicólogo Organizacional", "Coordenador de Treinamento Corporativo"],
+    future: ["Designer de Experiência do Colaborador (EX)", "Consultor de Bem-Estar Corporativo", "Facilitador de Aprendizagem Ágil"],
+    goiasAdherence: 75,
+    goiasInsight: "Goiânia é referência nacional em tratamentos médicos e estéticos. O turismo em Caldas Novas também demanda hospitalidade de alto nível.",
+    topCities: [
+      { city: "Goiânia", reason: "Polo médico e educacional de referência nacional." },
+      { city: "Caldas Novas", reason: "Turismo de saúde e bem-estar." },
+      { city: "Pirenópolis", reason: "Hospitalidade boutique e cultura." }
+    ],
+    salary: { junior: "R$ 3.000", pleno: "R$ 6.200", senior: "R$ 12.000+" },
+    sources: ["CRP-GO", "Sindicato dos Médicos GO", "Salario.com.br"],
+    swotBase: {
+      threat: "Apps de saúde mental substituindo atendimentos básicos.",
+      opportunity: "Economia prateada (foco em idosos) crescendo no estado."
+    },
+    exclusiveTip: "Especialize-se em 'Soft Skills' para a Indústria 4.0 via IEL. Empresas de tecnologia em Gyn estão contratando RH estratégico."
+  },
+  creative: {
+    baseTitle: "Economia Criativa",
+    description: "Criatividade guia suas escolhas. Inovação estética e comunicação.",
+    detailedAnalysis: "Você não aceita o padrão. Sua mente busca novas formas, cores e narrativas. A economia criativa em Goiás está explodindo para atender o marketing do Agronegócio (que precisa melhorar sua imagem global) e o mercado imobiliário de luxo, que demanda experiências sensoriais.",
+    traditional: ["Designer Gráfico", "Arquiteto Urbanista", "Profissional de Marketing Digital"],
+    future: ["Estrategista de Branding para o Agronegócio", "Designer de Interfaces Imersivas (VR/AR)", "Curador de Conteúdo Digital Regional"],
+    goiasAdherence: 70,
+    goiasInsight: "Mercado imobiliário de luxo em Goiânia e marketing para o Agro são os maiores compradores de serviços criativos hoje.",
+    topCities: [
+      { city: "Goiânia", reason: "Agências de publicidade, setor imobiliário e moda." },
+      { city: "Pirenópolis", reason: "Polo de artesanato, gastronomia e festivais." },
+      { city: "Cidade de Goiás", reason: "Patrimônio cultural e cinema." }
+    ],
+    salary: { junior: "R$ 2.500", pleno: "R$ 5.800", senior: "R$ 11.000+" },
+    sources: ["ABP", "Sindicato dos Arquitetos", "Design Rush"],
+    swotBase: {
+      threat: "IA Generativa criando imagens e textos em segundos.",
+      opportunity: "Humanização de marcas em um mundo digitalizado."
+    },
+    exclusiveTip: "Foque no nicho de 'Branding para o Agro'. O SEBRAE Goiás tem programas específicos de economia criativa e artesanato."
+  }
+};
+
+// --- COMPONENTES ---
+
+const Header = () => (
+  <header className="w-full p-6 bg-slate-950 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between sticky top-0 z-50 shadow-2xl backdrop-blur-sm bg-opacity-90">
+    <div className="flex items-center gap-3">
+      <div className="p-2 bg-gradient-to-tr from-amber-500 to-yellow-300 rounded-lg shadow-lg shadow-amber-500/20">
+        <Crown className="text-slate-900 w-6 h-6" />
+      </div>
+      <div>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Futuro<span className="text-amber-400">GO</span> <span className="text-xs font-light text-slate-500 border border-slate-700 rounded px-1 ml-1">EXCLUSIVE</span></h1>
+        <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em]">Simulador Estratégico de Elite</p>
+      </div>
     </div>
+    <div className="hidden md:flex items-center gap-4 text-sm text-amber-500/80">
+      <span className="flex items-center gap-1 border border-amber-500/20 px-3 py-1 rounded-full bg-amber-500/5"><MapPin size={14} /> Foco: Goiás</span>
+    </div>
+  </header>
+);
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Definição das perguntas do questionário
-            const questions = [
-                { 
-                    key: 'perfil',
-                    title: 'Perfil Básico',
-                    items: [
-                        { id: 'idade', text: 'Qual sua idade?', type: 'number', placeholder: '45', unit: 'anos' },
-                        { id: 'sexo', text: 'Qual seu sexo biológico?', type: 'select', options: ['Feminino', 'Masculino'], values: [1, 2] },
-                        { id: 'altura', text: 'Sua altura (em cm)', type: 'number', placeholder: '170', unit: 'cm' },
-                        { id: 'peso', text: 'Seu peso (em kg)', type: 'number', placeholder: '75', unit: 'kg' }
-                    ]
-                },
-                {
-                    key: 'habitos',
-                    title: 'Hábitos e Estilo de Vida',
-                    items: [
-                        { id: 'fumante', text: 'Você fuma ou fumou nos últimos 5 anos?', type: 'select', options: ['Não', 'Ex-fumante (parou há mais de 5 anos)', 'Sim, ocasionalmente', 'Sim, diariamente'], values: [0, 3, 7, 10] },
-                        { id: 'alcool', text: 'Com que frequência você consome bebidas alcoólicas?', type: 'select', options: ['Nunca ou raramente', '1 a 2 vezes por semana', '3 a 5 vezes por semana', 'Quase todos os dias'], values: [0, 3, 6, 9] },
-                        { id: 'dieta', text: 'Como você classifica sua alimentação?', type: 'select', options: ['Muito saudável (frutas, vegetais, grãos)', 'Geralmente saudável', 'Pouco saudável (muita gordura, açúcar, sal)', 'Muito processada e desbalanceada'], values: [1, 4, 8, 10] }
-                    ]
-                },
-                {
-                    key: 'atividade',
-                    title: 'Atividade Física',
-                    items: [
-                        { id: 'exercicio', text: 'Com que frequência você pratica atividade física moderada (30 min)?', type: 'select', options: ['5 ou mais vezes por semana', '3 a 4 vezes por semana', '1 a 2 vezes por semana', 'Raramente ou nunca'], values: [0, 3, 7, 10] }
-                    ]
-                },
-                {
-                    key: 'historico',
-                    title: 'Histórico Familiar e Pessoal',
-                    items: [
-                        { id: 'familia', text: 'Pai, mãe ou irmãos tiveram infarto ou AVC antes dos 55 anos (homens) ou 65 anos (mulheres)?', type: 'select', options: ['Não', 'Não sei informar', 'Sim'], values: [0, 5, 10] },
-                        { id: 'pressao', text: 'Você tem diagnóstico de pressão alta (hipertensão)?', type: 'select', options: ['Não', 'Sim, controlada com medicação', 'Sim, não controlada'], values: [0, 5, 10] },
-                        { id: 'diabetes', text: 'Você tem diagnóstico de diabetes?', type: 'select', options: ['Não', 'Pré-diabetes ou diabetes gestacional', 'Sim, controlado', 'Sim, não controlado'], values: [0, 4, 7, 10] },
-                        { id: 'colesterol', text: 'Você tem diagnóstico de colesterol alto?', type: 'select', options: ['Não', 'Sim, controlado', 'Sim, não controlado'], values: [0, 5, 10] }
-                    ]
-                },
-                {
-                    key: 'sintomas',
-                    title: 'Sintomas Recentes (últimos 6 meses)',
-                    items: [
-                        { id: 'dor_peito', text: 'Sentiu dor ou desconforto no peito durante esforço físico ou estresse?', type: 'select', options: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'], values: [0, 4, 8, 10] },
-                        { id: 'falta_ar', text: 'Sentiu falta de ar inexplicável, mesmo em repouso ou com pouco esforço?', type: 'select', options: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'], values: [0, 3, 7, 10] },
-                        { id: 'palpitacoes', text: 'Sentiu o coração bater de forma irregular, muito rápido ou "falhando"?', type: 'select', options: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'], values: [0, 3, 7, 10] },
-                        { id: 'inchaco', text: 'Percebeu inchaço nos tornozelos, pés ou pernas?', type: 'select', options: ['Não', 'Sim, leve e ocasional', 'Sim, persistente'], values: [0, 5, 10] },
-                        { id: 'tontura', text: 'Sentiu tonturas ou teve desmaios repentinos?', type: 'select', options: ['Não', 'Sim, raramente', 'Sim, algumas vezes'], values: [0, 5, 10] }
-                    ]
-                }
-            ];
+const PersonalInfoCard = ({ info, setInfo }) => {
+  const handleChange = (field, value) => {
+    setInfo(prev => ({ ...prev, [field]: value }));
+  };
 
-            // Elementos da DOM
-            const startSection = document.getElementById('start-section');
-            const quizSection = document.getElementById('quiz-section');
-            const resultsSection = document.getElementById('results-section');
-            const startBtn = document.getElementById('start-btn');
-            const prevBtn = document.getElementById('prev-btn');
-            const nextBtn = document.getElementById('next-btn');
-            const restartBtn = document.getElementById('restart-btn');
-            const questionTitle = document.getElementById('question-title');
-            const questionCounter = document.getElementById('question-counter');
-            const questionContainer = document.getElementById('question-container');
-            const progressBar = document.getElementById('progress-bar');
-            
-            let currentQuestionIndex = 0;
-            const userAnswers = {};
-            let radarChartInstance = null;
-            
-            // Função para iniciar o quiz
-            startBtn.addEventListener('click', () => {
-                startSection.classList.add('fade-out');
-                setTimeout(() => {
-                    startSection.classList.add('hidden');
-                    startSection.classList.remove('fade-out');
-                    quizSection.classList.remove('hidden');
-                    quizSection.classList.add('fade-in');
-                    displayQuestion();
-                }, 500);
-            });
-            
-            // Função para reiniciar o quiz
-            restartBtn.addEventListener('click', () => {
-                resultsSection.classList.add('fade-out');
-                setTimeout(() => {
-                    resultsSection.classList.add('hidden');
-                    resultsSection.classList.remove('fade-out');
-                    startSection.classList.remove('hidden');
-                    startSection.classList.add('fade-in');
-                    currentQuestionIndex = 0;
-                    Object.keys(userAnswers).forEach(key => delete userAnswers[key]);
-                    if(radarChartInstance) radarChartInstance.destroy();
-                }, 500);
-            });
+  return (
+    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl mb-8 relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber-500 to-transparent"></div>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+          <User className="text-amber-400 w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-white">Identidade Profissional</h3>
+          <p className="text-sm text-slate-400">Calibragem do algoritmo para seu momento de carreira.</p>
+        </div>
+      </div>
 
-            // Navegação do quiz
-            nextBtn.addEventListener('click', () => {
-                if(saveCurrentAnswers()){
-                    currentQuestionIndex++;
-                    if (currentQuestionIndex < questions.length) {
-                        displayQuestion();
-                    } else {
-                        showResults();
-                    }
-                }
-            });
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+        {/* Inputs with enhanced styling */}
+        {[{label: "Faixa Etária", key: "age", opts: ["16-24", "25-34", "35-44", "45-54", "55+"]}, 
+          {label: "Gênero", key: "gender", opts: [{val: "fem", txt: "Feminino"}, {val: "masc", txt: "Masculino"}, {val: "other", txt: "Outro"}]}
+        ].map((field, i) => (
+          <div key={i} className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{field.label}</label>
+            <select 
+              value={info[field.key]} onChange={(e) => handleChange(field.key, e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all"
+            >
+              <option value="">Selecione...</option>
+              {field.opts.map(o => (
+                typeof o === 'string' ? <option key={o} value={o}>{o}</option> : <option key={o.val} value={o.val}>{o.txt}</option>
+              ))}
+            </select>
+          </div>
+        ))}
 
-            prevBtn.addEventListener('click', () => {
-                if (currentQuestionIndex > 0) {
-                    currentQuestionIndex--;
-                    displayQuestion();
-                }
-            });
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Profissão Atual</label>
+          <input 
+            type="text" 
+            placeholder="Ex: Analista..."
+            value={info.profession} 
+            onChange={(e) => handleChange('profession', e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:ring-1 focus:ring-amber-500 outline-none placeholder:text-slate-700"
+          />
+        </div>
 
-            // Função para salvar as respostas atuais
-            function saveCurrentAnswers() {
-                const currentGroup = questions[currentQuestionIndex];
-                let allAnswered = true;
-                const validationMessage = document.getElementById('validation-message');
-                validationMessage.classList.add('hidden'); // Oculta a mensagem ao verificar novamente
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nível de Experiência</label>
+          <select 
+            value={info.level} onChange={(e) => handleChange('level', e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:ring-1 focus:ring-amber-500 outline-none"
+          >
+            <option value="">Selecione...</option>
+            {PERSONAL_LEVELS.map(l => (
+              <option key={l.id} value={l.id}>{l.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-                currentGroup.items.forEach(item => {
-                    const input = document.getElementById(`input-${item.id}`);
-                    if(input.value === ''){
-                        allAnswered = false;
-                        // Encontra o container de botões ou o slider para destacar o erro
-                        const questionContent = input.closest('.flex, .grid');
-                        if(questionContent) {
-                           // Apenas para feedback visual futuro, se necessário.
-                        }
-                    } else {
-                        // A escrita em userAnswers foi removida daqui.
-                        // Ela já é feita de forma mais eficiente nos eventos de 'click' (botões) 
-                        // e 'oninput' (sliders), e na inicialização dos sliders. 
-                        // Esta função agora serve apenas para validação.
-                    }
-                });
-                if(!allAnswered) {
-                    validationMessage.classList.remove('hidden'); // Mostra a mensagem de validação
-                }
-                return allAnswered;
-            }
+const MultiSelectionCard = ({ categoryKey, options, selectedIds, onToggle }) => {
+  const meta = OPTIONS_META[categoryKey];
+  const Icon = meta.icon;
 
-            // Função para exibir a pergunta
-            function displayQuestion() {
-                const questionGroup = questions[currentQuestionIndex];
-                questionTitle.textContent = questionGroup.title;
-                questionCounter.textContent = `${currentQuestionIndex + 1} / ${questions.length}`;
-                questionContainer.innerHTML = '';
+  return (
+    <div className="bg-slate-900/50 backdrop-blur-md p-6 rounded-xl border border-slate-800 hover:border-amber-500/30 transition-all duration-500 shadow-xl flex flex-col h-full group">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2 bg-slate-800 rounded-lg border border-slate-700 group-hover:bg-amber-500/10 group-hover:border-amber-500/30 transition-colors">
+          <Icon className="text-slate-400 group-hover:text-amber-400 w-5 h-5 transition-colors" />
+        </div>
+        <h3 className="text-lg font-semibold text-white group-hover:text-amber-100 transition-colors">{meta.title}</h3>
+      </div>
+      
+      <p className="text-sm text-slate-500 mb-6 leading-relaxed min-h-[40px]">
+        {meta.description}
+      </p>
+      
+      <div className="space-y-2 mt-auto">
+        {options.map(opt => {
+          const isSelected = selectedIds.includes(opt.id);
+          return (
+            <button
+              key={opt.id}
+              onClick={() => onToggle(opt.id)}
+              className={`w-full text-left px-4 py-3 rounded-lg border transition-all duration-300 flex items-center justify-between group/btn relative overflow-hidden
+                ${isSelected 
+                  ? 'bg-amber-500 border-amber-400 text-slate-900 font-bold shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900 hover:border-slate-600'
+                }`}
+            >
+              <span className="relative z-10 text-sm">{opt.label}</span>
+              {isSelected ? (
+                <Check size={16} className="text-slate-900 relative z-10" />
+              ) : (
+                <div className="w-4 h-4 rounded-full border border-slate-700 group-hover/btn:border-slate-500 relative z-10"></div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
-                questionGroup.items.forEach(item => {
-                    const questionDiv = document.createElement('div');
-                    questionDiv.className = 'mb-4';
-                    
-                    const label = document.createElement('label');
-                    label.htmlFor = `input-${item.id}`;
-                    label.className = 'block text-md font-medium text-gray-700 mb-2';
-                    label.textContent = item.text;
-                    questionDiv.appendChild(label);
+const RadarDisplay = ({ data }) => (
+  <div className="h-[350px] w-full flex items-center justify-center relative">
+    <ResponsiveContainer width="100%" height="100%">
+      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+        <PolarGrid gridType="polygon" stroke="#334155" />
+        <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }} />
+        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+        <Radar
+          name="Perfil"
+          dataKey="A"
+          stroke="#f59e0b"
+          strokeWidth={2}
+          fill="#f59e0b"
+          fillOpacity={0.2}
+        />
+        <Tooltip 
+          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '8px' }}
+          itemStyle={{ color: '#fbbf24' }}
+        />
+      </RadarChart>
+    </ResponsiveContainer>
+    <div className="absolute bottom-0 right-0 bg-slate-900/80 border border-slate-700 px-2 py-1 rounded text-[10px] text-slate-500 uppercase tracking-widest">
+      Análise Biométrica v4.0
+    </div>
+  </div>
+);
 
-                    if (item.type === 'select') {
-                        // Input oculto para armazenar o valor da resposta
-                        const hiddenInput = document.createElement('input');
-                        hiddenInput.type = 'hidden';
-                        hiddenInput.id = `input-${item.id}`;
-                        // CORREÇÃO: Verifica explicitamente por 'undefined' para não tratar o valor 0 como ausente.
-                        hiddenInput.value = userAnswers[item.id] !== undefined ? userAnswers[item.id] : '';
-                        questionDiv.appendChild(hiddenInput);
+const SwotBlock = ({ type, title, items, icon: Icon }) => {
+  const styles = {
+    strength: { bg: "bg-emerald-950/20", border: "border-emerald-500/20", text: "text-emerald-400", iconBg: "bg-emerald-500/10" },
+    weakness: { bg: "bg-red-950/20", border: "border-red-500/20", text: "text-red-400", iconBg: "bg-red-500/10" },
+    opportunity: { bg: "bg-blue-950/20", border: "border-blue-500/20", text: "text-blue-400", iconBg: "bg-blue-500/10" },
+    threat: { bg: "bg-amber-950/20", border: "border-amber-500/20", text: "text-amber-400", iconBg: "bg-amber-500/10" }
+  };
+  const s = styles[type];
 
-                        const buttonContainer = document.createElement('div');
-                        const optionCount = item.options.length;
-                        // Ajusta o layout dos botões com base na quantidade de opções
-                        const gridClasses = optionCount <= 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-2';
-                        buttonContainer.className = `grid ${gridClasses} gap-3 mt-2`;
-                        
-                        item.options.forEach((option, index) => {
-                            const button = document.createElement('button');
-                            button.type = 'button';
-                            button.textContent = option;
-                            const value = item.values[index];
-                            button.dataset.value = value;
+  return (
+    <div className={`p-5 rounded-xl border ${s.bg} ${s.border} flex flex-col gap-4 h-full transition-all hover:bg-opacity-40`}>
+      <div className={`flex items-center gap-3 font-bold uppercase text-xs tracking-widest ${s.text}`}>
+        <div className={`p-1.5 rounded ${s.iconBg}`}><Icon size={14} /></div> {title}
+      </div>
+      <ul className="space-y-3">
+        {items.map((item, idx) => (
+          <li key={idx} className="text-sm text-slate-300 leading-snug flex items-start gap-3">
+            <span className={`mt-1.5 w-1 h-1 rounded-full ${s.text} opacity-60`}></span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
-                            const baseClasses = 'w-full text-center p-3 rounded-lg border-2 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400';
-                            const defaultClasses = 'bg-white border-gray-300 text-gray-700';
-                            const selectedClasses = 'bg-red-600 border-red-700 text-white shadow-lg scale-105';
-                            
-                            // CORREÇÃO: Adiciona uma verificação para garantir que o input não está vazio antes de comparar.
-                            // Isso evita que o valor 0 seja selecionado por padrão devido à coerção de tipo (' ' == 0).
-                            button.className = (hiddenInput.value !== '' && hiddenInput.value == value) 
-                                ? `${baseClasses} ${selectedClasses}`
-                                : `${baseClasses} ${defaultClasses}`;
+const DevelopmentCard = ({ guide }) => (
+  <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 hover:border-amber-500/40 transition-all group">
+    <h4 className="text-amber-500 font-bold text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+      <AlertTriangle size={12} /> {guide.gapTitle}
+    </h4>
+    <div className="space-y-3">
+      {guide.actions.map((action, idx) => (
+        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-950 border border-slate-800 group-hover:border-slate-700 transition-colors">
+          <div className="bg-amber-500/10 p-1.5 rounded text-amber-400 mt-0.5">
+            <ArrowRight size={12} />
+          </div>
+          <div>
+            <div className="text-slate-200 font-bold text-sm">{action.name}</div>
+            <div className="text-xs text-slate-500 flex flex-wrap gap-2 items-center mt-1">
+              <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 uppercase text-[10px]">{action.type}</span>
+              <span className="text-amber-500/80">{action.provider}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
-                            button.addEventListener('click', () => {
-                                // Define o valor no input oculto
-                                hiddenInput.value = value;
-                                userAnswers[item.id] = value;
+export default function CareerSimulatorGoias() {
+  const [personalInfo, setPersonalInfo] = useState({ age: '', gender: '', profession: '', level: '' });
+  const [choices, setChoices] = useState({ afinidades: [], habilidades: [], competencias: [], aptidoes: [] });
+  const [result, setResult] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-                                // Reseta o estilo de todos os botões no grupo
-                                buttonContainer.querySelectorAll('button').forEach(btn => {
-                                    btn.className = `${baseClasses} ${defaultClasses}`;
-                                });
+  const totalSelections = Object.values(choices).flat().length;
+  const personalInfoComplete = Object.values(personalInfo).every(val => val !== '');
+  const canAnalyze = totalSelections >= 3 && personalInfoComplete;
 
-                                // Aplica o estilo de selecionado ao botão clicado
-                                button.className = `${baseClasses} ${selectedClasses}`;
-                            });
-                            buttonContainer.appendChild(button);
-                        });
-                        questionDiv.appendChild(buttonContainer);
+  const handleToggle = (category, id) => {
+    setChoices(prev => {
+      const currentList = prev[category];
+      if (currentList.includes(id)) return { ...prev, [category]: currentList.filter(item => item !== id) };
+      return { ...prev, [category]: [...currentList, id] };
+    });
+  };
 
-                    } else if (item.type === 'number') {
-                        const inputWrapper = document.createElement('div');
-                        inputWrapper.className = 'relative mt-2 rounded-md shadow-sm';
-                        
-                        const input = document.createElement('input');
-                        input.type = 'number';
-                        input.id = `input-${item.id}`;
-                        input.placeholder = item.placeholder;
-                        input.className = 'block w-full pl-4 pr-16 py-3 border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 sm:text-lg';
-                        input.value = userAnswers[item.id] || '';
-                        
-                        // Salva a resposta do usuário a cada digitação
-                        input.oninput = () => {
-                            userAnswers[item.id] = input.value;
-                        };
-                        
-                        const unitDiv = document.createElement('div');
-                        unitDiv.className = 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4';
-                        const unitSpan = document.createElement('span');
-                        unitSpan.className = 'text-gray-500 sm:text-md';
-                        unitSpan.textContent = item.unit;
-                        
-                        unitDiv.appendChild(unitSpan);
-                        inputWrapper.appendChild(input);
-                        inputWrapper.appendChild(unitDiv);
-                        questionDiv.appendChild(inputWrapper);
-                    }
-                    
-                    questionContainer.appendChild(questionDiv);
-                });
-                
-                prevBtn.style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
-                nextBtn.textContent = currentQuestionIndex === questions.length - 1 ? 'Ver Resultados' : 'Avançar';
-                
-                const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-                progressBar.style.width = `${progress}%`;
-            }
+  const generateDNA = (scores) => {
+    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const primary = DNA_MAP[sorted[0][0]];
+    const secondary = DNA_MAP[sorted[1][0]];
+    // Ex: "Estrategista Bio-Digital" ou "Líder Criativo"
+    const title = `${primary.noun} ${secondary.adj} ${sorted[2] ? DNA_MAP[sorted[2][0]].prefix : ''}`;
+    const subtitle = `Fusão de ${primary.noun} com viés ${secondary.adj}`;
+    return { title, subtitle };
+  };
 
-            // Função para calcular scores e mostrar resultados
-            function showResults() {
-                quizSection.classList.add('fade-out');
-                setTimeout(() => {
-                    quizSection.classList.add('hidden');
-                    quizSection.classList.remove('fade-out');
-                    
-                    resultsSection.classList.remove('hidden');
-                    resultsSection.classList.add('fade-in');
-                    
-                    const scores = calculateScores();
-                    generateOverallRisk(scores);
-                    createRadarChart(scores);
-                    generateRecommendations(scores);
-                }, 500);
-            }
+  const generateSwotAnalysis = (scores, profile, info) => {
+    const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const topSkills = sortedScores.slice(0, 2).map(s => s[0]);
+    const lowSkills = sortedScores.reverse().slice(0, 2).map(s => s[0]);
 
-            function calculateScores() {
-                // Eixos do gráfico de radar
-                const scores = {
-                    'Fatores Base': 0,
-                    'Peso/IMC': 0,
-                    'Sedentarismo': 0,
-                    'Hábitos': 0,
-                    'Condições Prévias': 0,
-                    'Histórico Familiar': 0,
-                    'Sintomas': 0
-                };
+    const axisLabels = {
+      inovacao: "Inovação Digital", analise: "Visão Analítica", 
+      lideranca: "Gestão & Liderança", social: "Inteligência Social", 
+      sustentabilidade: "Consciência Verde", praticidade: "Execução Ágil", criatividade: "Pensamento Criativo"
+    };
 
-                // 1. Fatores Base (Idade e Sexo)
-                const age = parseInt(userAnswers.idade) || 0;
-                const sex = parseInt(userAnswers.sexo) || 0;
-                let ageScore = 0;
-                if (age < 40) ageScore = 1;
-                else if (age < 50) ageScore = 4;
-                else if (age < 60) ageScore = 7;
-                else ageScore = 10;
-                
-                let baseFactorScore = ageScore;
-                if (sex === 2 && age > 45) { // Risco adicional para homens acima de 45
-                    baseFactorScore += 2;
-                }
-                scores['Fatores Base'] = Math.min(baseFactorScore, 10);
-                
-                // 2. Calcular IMC
-                const height = parseFloat(userAnswers.altura) / 100;
-                const weight = parseFloat(userAnswers.peso);
-                if (height > 0 && weight > 0) {
-                    const bmi = weight / (height * height);
-                    if (bmi < 18.5) scores['Peso/IMC'] = 2;
-                    else if (bmi < 25) scores['Peso/IMC'] = 0;
-                    else if (bmi < 30) scores['Peso/IMC'] = 5;
-                    else if (bmi < 35) scores['Peso/IMC'] = 8;
-                    else scores['Peso/IMC'] = 10;
-                }
+    const strengths = topSkills.map(skill => `Alta performance em ${axisLabels[skill]}`);
+    if (info.level === 'sr') strengths.push("Senioridade consolidada e visão sistêmica.");
+    if (info.profession) strengths.push(`Bagagem técnica prévia em ${info.profession}.`);
 
-                // 3. Sedentarismo
-                scores['Sedentarismo'] = parseInt(userAnswers.exercicio) || 0;
+    const weaknesses = lowSkills.map(skill => `Ponto de Atenção: ${axisLabels[skill]}`);
+    if (info.level === 'none') weaknesses.push("Falta de vivência prática corporativa.");
 
-                // 4. Hábitos (fumo, álcool, dieta) - com fallback para 0 para evitar NaN
-                const fumanteScore = parseInt(userAnswers.fumante) || 0;
-                const alcoolScore = parseInt(userAnswers.alcool) || 0;
-                const dietaScore = parseInt(userAnswers.dieta) || 0;
-                scores['Hábitos'] = (fumanteScore + alcoolScore + dietaScore) / 3;
+    const opportunities = [profile.goiasInsight];
+    if (info.level === 'none') opportunities.push("Programas de Trainee em ascensão em GO.");
+    opportunities.push(profile.swotBase.opportunity);
 
-                // 5. Condições Prévias (pressão, diabetes, colesterol) - com fallback para 0 para evitar NaN
-                const pressaoScore = parseInt(userAnswers.pressao) || 0;
-                const diabetesScore = parseInt(userAnswers.diabetes) || 0;
-                const colesterolScore = parseInt(userAnswers.colesterol) || 0;
-                scores['Condições Prévias'] = (pressaoScore + diabetesScore + colesterolScore) / 3;
-                
-                // 6. Histórico Familiar
-                scores['Histórico Familiar'] = parseInt(userAnswers.familia) || 0;
-                
-                // 7. Sintomas - com fallback para 0 para evitar NaN
-                const dorPeitoScore = parseInt(userAnswers.dor_peito) || 0;
-                const faltaArScore = parseInt(userAnswers.falta_ar) || 0;
-                const palpitacoesScore = parseInt(userAnswers.palpitacoes) || 0;
-                const inchacoScore = parseInt(userAnswers.inchaco) || 0;
-                const tonturaScore = parseInt(userAnswers.tontura) || 0;
-                scores['Sintomas'] = (dorPeitoScore + faltaArScore + palpitacoesScore + inchacoScore + tonturaScore) / 5;
-                
-                // Normaliza todos os scores para uma escala de 0 a 10
-                Object.keys(scores).forEach(key => {
-                    scores[key] = Math.round(scores[key]);
-                    if(scores[key] > 10) scores[key] = 10;
-                    if(scores[key] < 0) scores[key] = 0;
-                });
-                
-                return scores;
-            }
+    const threats = [profile.swotBase.threat];
+    if (scores.inovacao < 50) threats.push("Risco de obsolescência por baixa adaptação tech.");
+    
+    return { strengths, weaknesses, opportunities, threats, lowSkills };
+  };
 
-            // Função para criar o gráfico de radar
-            function createRadarChart(scores) {
-                const ctx = document.getElementById('radarChart').getContext('2d');
-                const data = {
-                    labels: Object.keys(scores),
-                    datasets: [{
-                        label: 'Seu Perfil de Risco',
-                        data: Object.values(scores),
-                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                        borderColor: 'rgba(220, 38, 38, 1)',
-                        borderWidth: 2,
-                        pointBackgroundColor: 'rgba(220, 38, 38, 1)',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgba(220, 38, 38, 1)'
-                    }]
-                };
-
-                const options = {
-                    scales: {
-                        r: {
-                            angleLines: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            },
-                            pointLabels: {
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                },
-                                color: '#374151'
-                            },
-                            ticks: {
-                                beginAtZero: true,
-                                max: 10,
-                                stepSize: 2,
-                                backdropColor: 'rgba(255, 255, 255, 0.75)',
-                                color: '#6b7280'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    responsive: true,
-                    maintainAspectRatio: true
-                };
-                
-                if (radarChartInstance) {
-                    radarChartInstance.destroy();
-                }
-
-                radarChartInstance = new Chart(ctx, {
-                    type: 'radar',
-                    data: data,
-                    options: options
-                });
-            }
-
-            function generateOverallRisk(scores) {
-                const riskLevelEl = document.getElementById('risk-level');
-                const riskDescriptionEl = document.getElementById('risk-description');
-                const riskContainer = document.getElementById('risk-classification');
-
-                const weights = {
-                    'Sintomas': 3,
-                    'Condições Prévias': 2.5,
-                    'Fatores Base': 2,
-                    'Peso/IMC': 1.5,
-                    'Hábitos': 1.5,
-                    'Sedentarismo': 1,
-                    'Histórico Familiar': 0.5
-                };
-                const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
-
-                let weightedScore = 0;
-                for (const key in scores) {
-                    if (weights[key]) {
-                        weightedScore += (scores[key] || 0) * weights[key];
-                    }
-                }
-
-                const finalScore = weightedScore / totalWeight;
-
-                let level = '';
-                let description = '';
-                let colors = ''; 
-
-                if (finalScore <= 2.5) {
-                    level = 'Risco Baixo';
-                    description = 'Seu perfil indica um baixo risco cardiovascular. Continue com os hábitos saudáveis e acompanhamento de rotina.';
-                    colors = 'bg-green-100 text-green-800';
-                } else if (finalScore <= 5) {
-                    level = 'Risco Moderado';
-                    description = 'Existem fatores de risco que merecem atenção. Mudanças no estilo de vida e acompanhamento médico são recomendados.';
-                    colors = 'bg-yellow-100 text-yellow-800';
-                } else if (finalScore <= 7.5) {
-                    level = 'Risco Alto';
-                    description = 'Seu perfil indica um risco cardiovascular elevado. É fundamental uma consulta com um cardiologista para um plano de ação.';
-                    colors = 'bg-orange-100 text-orange-800';
-                } else {
-                    level = 'Risco Muito Alto';
-                    description = 'Seu perfil apresenta múltiplos fatores de risco. A busca por um cardiologista é urgente para uma avaliação aprofundada.';
-                    colors = 'bg-red-100 text-red-800';
-                }
-                
-                riskContainer.className = `mb-8 p-6 rounded-lg text-center ${colors}`;
-                riskLevelEl.textContent = level;
-                riskDescriptionEl.textContent = description;
-            }
-
-            // Função para gerar recomendações
-            function generateRecommendations(scores) {
-                const container = document.getElementById('recommendations-text');
-                container.innerHTML = '';
-                
-                const highRiskThreshold = 7;
-                const moderateRiskThreshold = 4;
-
-                const messages = {
-                    'Sintomas': {
-                        high: 'Seu score de <strong>Sintomas</strong> é elevado. É <strong>altamente recomendável</strong> procurar um cardiologista para uma avaliação detalhada. Exames como Eletrocardiograma (ECG), Teste Ergométrico ou Ecocardiograma podem ser considerados pelo médico para investigar as causas.',
-                        moderate: 'Você relatou alguns <strong>sintomas</strong> que merecem atenção. Monitore-os e mencione-os na sua próxima consulta médica. Manter um diário dos sintomas pode ajudar.'
-                    },
-                    'Condições Prévias': {
-                        high: 'O controle das suas <strong>Condições Prévias</strong> (pressão alta, diabetes, colesterol) parece ser um ponto crítico. Converse com seu médico sobre otimizar o tratamento. A adesão correta à medicação e ao monitoramento é fundamental.',
-                        moderate: 'Suas <strong>Condições Prévias</strong> representam um fator de risco moderado. Garanta que você está fazendo o acompanhamento médico regular e seguindo o tratamento prescrito.'
-                    },
-                     'Peso/IMC': {
-                        high: 'Seu <strong>Peso/IMC</strong> está na faixa de risco. A perda de peso, mesmo que modesta (5-10%), pode trazer grandes benefícios para a saúde do coração. Um nutricionista pode te ajudar a criar um plano alimentar sustentável.',
-                        moderate: 'Seu <strong>Peso/IMC</strong> indica sobrepeso. Pequenas mudanças na dieta e na rotina de exercícios podem fazer uma grande diferença para prevenir problemas futuros.'
-                    },
-                    'Hábitos': {
-                        high: 'Seus <strong>Hábitos</strong> (dieta, fumo, álcool) são um ponto de grande impacto no seu risco. Parar de fumar é a medida isolada mais eficaz. Melhorar a dieta e moderar o álcool também são cruciais. Procure ajuda profissional se necessário.',
-                        moderate: 'Existem oportunidades de melhoria nos seus <strong>Hábitos</strong>. Considerar uma dieta mais balanceada, reduzir o álcool ou o cigarro pode diminuir significativamente seu risco cardiovascular.'
-                    },
-                    'Sedentarismo': {
-                        high: 'O <strong>sedentarismo</strong> é um grande fator de risco. Comece com atividades leves, como caminhadas diárias de 20-30 minutos. A regularidade é mais importante que a intensidade no início. Consulte um médico antes de iniciar atividades intensas.',
-                        moderate: 'Aumentar a frequência ou a intensidade da sua atividade física pode trazer benefícios adicionais. Tente incorporar mais movimento no seu dia a dia.'
-                    },
-                    'Histórico Familiar': {
-                        high: 'Seu <strong>Histórico Familiar</strong> aumenta sua predisposição a doenças cardíacas. Isso torna o controle dos outros fatores de risco (como dieta, exercício e não fumar) ainda mais importante para você. Check-ups regulares são essenciais.',
-                        moderate: ''
-                    }
-                };
-                
-                let hasRecommendations = false;
-                for (const key in scores) {
-                    let message = '';
-                    if (scores[key] >= highRiskThreshold && messages[key]?.high) {
-                        message = messages[key].high;
-                        hasRecommendations = true;
-                    } else if (scores[key] >= moderateRiskThreshold && messages[key]?.moderate) {
-                        message = messages[key].moderate;
-                         hasRecommendations = true;
-                    }
-                    
-                    if (message) {
-                        const p = document.createElement('p');
-                        p.innerHTML = `<span class="font-semibold text-red-600">&#10148;</span> ${message}`;
-                        container.appendChild(p);
-                    }
-                }
-
-                if (!hasRecommendations) {
-                     const p = document.createElement('p');
-                     p.innerHTML = 'Seu perfil de risco geral parece baixo com base nas suas respostas. Continue com seus hábitos saudáveis e mantenha o acompanhamento médico de rotina. A prevenção é sempre o melhor caminho!';
-                     container.appendChild(p);
-                }
-            }
+  const calculateResults = () => {
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      const scores = { inovacao: 0, analise: 0, lideranca: 0, social: 0, praticidade: 0, sustentabilidade: 0, criatividade: 0 };
+      Object.keys(choices).forEach(catKey => {
+        choices[catKey].forEach(id => {
+          const option = OPTIONS[catKey].find(opt => opt.id === id);
+          if (option) Object.entries(option.axes).forEach(([axis, val]) => scores[axis] += val);
         });
-    </script>
+      });
 
-</body>
-</html>
+      const maxScore = Math.max(...Object.values(scores)) || 1;
+      const norm = 100 / maxScore;
+      const radarData = [
+        { subject: 'Inovação', A: Math.round(scores.inovacao * norm), fullMark: 100 },
+        { subject: 'Análise', A: Math.round(scores.analise * norm), fullMark: 100 },
+        { subject: 'Liderança', A: Math.round(scores.lideranca * norm), fullMark: 100 },
+        { subject: 'Social', A: Math.round(scores.social * norm), fullMark: 100 },
+        { subject: 'Verde', A: Math.round(scores.sustentabilidade * norm), fullMark: 100 },
+        { subject: 'Prático', A: Math.round(scores.praticidade * norm), fullMark: 100 },
+        { subject: 'Criativo', A: Math.round(scores.criatividade * norm), fullMark: 100 },
+      ];
 
+      const sortedAxes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      const dominantAxis = sortedAxes[0][0];
+      const secondaryAxis = sortedAxes[1][0];
+      const dna = generateDNA(scores);
 
+      let bestMatch = 'tech_innovator';
+      if (dominantAxis === 'sustentabilidade' || (dominantAxis === 'praticidade' && secondaryAxis === 'sustentabilidade')) bestMatch = 'agro_bio';
+      else if (dominantAxis === 'lideranca' || (dominantAxis === 'analise' && secondaryAxis === 'lideranca')) bestMatch = 'biz_leader';
+      else if (dominantAxis === 'social' || (dominantAxis === 'emp')) bestMatch = 'human_care';
+      else if (dominantAxis === 'criatividade' || (dominantAxis === 'inovacao' && secondaryAxis === 'criatividade')) bestMatch = 'creative';
 
+      const profile = CAREER_PATHS[bestMatch];
+      const swot = generateSwotAnalysis(scores, profile, personalInfo);
+      const developmentPlan = swot.lowSkills.map(skill => DEVELOPMENT_GUIDE[skill]).filter(Boolean);
 
+      setResult({ radar: radarData, profile, topAxes: [dominantAxis, secondaryAxis], swot, developmentPlan, dna });
+      setIsAnalyzing(false);
+    }, 2000);
+  };
 
+  const reset = () => {
+    setResult(null);
+    setChoices({ afinidades: [], habilidades: [], competencias: [], aptidoes: [] });
+    setPersonalInfo({ age: '', gender: '', profession: '', level: '' });
+  };
 
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-amber-500/30">
+      <Header />
 
+      <main className="max-w-7xl mx-auto p-4 md:p-8 space-y-12">
+        
+        {!result && !isAnalyzing && (
+          <div className="animate-fade-in-up space-y-8">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mt-8">
+              <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tighter">
+                Descubra seu <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200">DNA Profissional</span>
+              </h2>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+                A única ferramenta que cruza inteligência de dados com a matriz econômica de Goiás para gerar um plano de carreira de elite.
+              </p>
+            </div>
 
+            <PersonalInfoCard info={personalInfo} setInfo={setPersonalInfo} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {Object.keys(OPTIONS).map(key => (
+                <MultiSelectionCard
+                  key={key}
+                  categoryKey={key}
+                  options={OPTIONS[key]}
+                  selectedIds={choices[key]}
+                  onToggle={(id) => handleToggle(key, id)}
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-col items-center pt-10 gap-4">
+              <button
+                onClick={calculateResults}
+                disabled={!canAnalyze}
+                className={`px-12 py-5 rounded-lg text-lg font-bold flex items-center gap-4 transition-all transform shadow-2xl tracking-wide border
+                  ${canAnalyze 
+                    ? 'bg-amber-500 border-amber-400 text-slate-900 hover:scale-105 hover:shadow-amber-500/40 cursor-pointer' 
+                    : 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed opacity-50'}`}
+              >
+                {canAnalyze ? (
+                  <>
+                    <Fingerprint className="w-6 h-6" />
+                    GERAR DOSSIÊ EXCLUSIVO
+                  </>
+                ) : (
+                  'PREENCHA TODOS OS DADOS'
+                )}
+              </button>
+              {!canAnalyze && (
+                <span className="text-xs text-slate-500 flex items-center gap-1">
+                  <Info size={12} /> Identidade e Seleções (mín. 3) obrigatórias.
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isAnalyzing && (
+          <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8 animate-fade-in relative">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
+            <div className="relative">
+              <div className="w-40 h-40 border border-slate-800 rounded-full animate-ping absolute inset-0 opacity-20"></div>
+              <div className="w-40 h-40 border-2 border-amber-500/30 rounded-full border-t-amber-500 animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Fingerprint className="text-amber-500 w-12 h-12 animate-pulse" />
+              </div>
+            </div>
+            <div className="text-center space-y-3 z-10">
+              <h3 className="text-3xl font-light text-white">Decodificando Perfil...</h3>
+              <p className="text-sm text-amber-500/80 font-mono">
+                CRUZANDO DADOS COM: SENAI . SEBRAE . IEL . CAGED
+              </p>
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="animate-fade-in space-y-10 pb-20">
+            
+            {/* EXCLUSIVE HEADER */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 rounded-2xl border border-slate-800 p-8 md:p-12 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
+              
+              <div className="relative z-10 flex flex-col md:flex-row gap-10 items-start">
+                <div className="flex-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-widest mb-6">
+                    <Star size={10} fill="currentColor" /> Resultado da Análise
+                  </div>
+                  <h2 className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tight leading-none">
+                    {result.dna.title}
+                  </h2>
+                  <p className="text-xl text-slate-400 font-light mb-8 border-l-4 border-amber-500 pl-4">
+                    {result.dna.subtitle} | Arquétipo: <span className="text-white font-medium">{result.profile.baseTitle}</span>
+                  </p>
+                  
+                  <div className="bg-slate-800/40 p-6 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                    <h4 className="text-amber-500 font-bold text-xs uppercase mb-3 flex items-center gap-2">
+                      <BookOpen size={14} /> Sua Assinatura Profissional
+                    </h4>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                      {result.profile.detailedAnalysis}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="w-full md:w-1/3 flex flex-col gap-4">
+                   <div className="bg-slate-900 rounded-xl p-6 border border-slate-800 shadow-xl">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-bold text-slate-400 uppercase">Radar de Competência</h3>
+                        <TrendingUp className="text-amber-500 w-4 h-4" />
+                      </div>
+                      <RadarDisplay data={result.radar} />
+                   </div>
+                   <div className="bg-amber-500 text-slate-900 p-4 rounded-lg font-bold text-center text-sm shadow-lg shadow-amber-500/20 cursor-default">
+                     <span className="block text-xs opacity-70 uppercase mb-1">Nível de Aderência GO</span>
+                     <span className="text-3xl">{result.profile.goiasAdherence}%</span> MATCH
+                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* COLUMN 1: MARKET DATA & TIPS (4 cols) */}
+              <div className="lg:col-span-4 space-y-6 h-full">
+                <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl sticky top-24">
+                  <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <DollarSign className="text-emerald-400" /> Valor de Mercado
+                  </h3>
+                  <div className="space-y-4 mb-6">
+                    {['junior', 'pleno', 'senior'].map(lvl => (
+                      <div key={lvl} className="flex justify-between items-center pb-3 border-b border-slate-800 last:border-0">
+                        <span className="text-slate-500 text-sm capitalize">{lvl}</span>
+                        <span className={`font-mono font-bold ${lvl === 'senior' ? 'text-emerald-400 text-lg' : 'text-white'}`}>
+                          {result.profile.salary[lvl]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-8 bg-indigo-900/20 p-5 rounded-xl border border-indigo-500/30">
+                    <h4 className="text-indigo-400 font-bold text-xs uppercase mb-3 flex items-center gap-2">
+                      <Lightbulb size={14} /> Insight Exclusivo
+                    </h4>
+                    <p className="text-sm text-indigo-100 leading-relaxed">
+                      {result.profile.exclusiveTip}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUMN 2: MAIN CONTENT (8 cols) */}
+              <div className="lg:col-span-8 space-y-8">
+                
+                {/* SWOT ANALYSIS */}
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
+                   <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+                     <ShieldAlert className="text-amber-500" /> Matriz Estratégica (SWOT)
+                   </h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <SwotBlock type="strength" title="Forças (Strengths)" items={result.swot.strengths} icon={Zap} />
+                     <SwotBlock type="weakness" title="Fraquezas (Weaknesses)" items={result.swot.weaknesses} icon={AlertTriangle} />
+                     <SwotBlock type="opportunity" title="Oportunidades (Opportunities)" items={result.swot.opportunities} icon={Rocket} />
+                     <SwotBlock type="threat" title="Ameaças (Threats)" items={result.swot.threats} icon={ShieldAlert} />
+                   </div>
+                </div>
+
+                 {/* CURATED ROADMAP (SISTEMA S) */}
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                    <GraduationCap size={180} className="text-white" />
+                  </div>
+                  
+                  <div className="relative z-10 mb-8">
+                    <div className="inline-block px-3 py-1 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-widest mb-2">
+                      Curadoria Oficial
+                    </div>
+                    <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                      Plano de Desenvolvimento de Elite
+                    </h3>
+                    <p className="text-slate-400 mt-2">
+                      Recomendações filtradas para o ecossistema <span className="text-white font-bold">SENAI, SEBRAE e IEL</span> em Goiás.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                    {result.developmentPlan.map((guide, i) => (
+                      <DevelopmentCard key={i} guide={guide} />
+                    ))}
+                    {result.developmentPlan.length === 0 && (
+                      <div className="col-span-2 py-10 text-center border border-dashed border-slate-700 rounded-xl">
+                        <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+                        <p className="text-slate-300">Seu perfil está excepcionalmente equilibrado.</p>
+                        <p className="text-sm text-slate-500">Foco sugerido: Networking de alto nível e mentoria.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* REGIONS & CAREERS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 hover:border-slate-700 transition-colors">
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                      <Briefcase size={18} className="text-slate-500" /> Profissões Consolidadas
+                    </h3>
+                    <ul className="space-y-4">
+                      {result.profile.traditional.map((job, i) => (
+                        <li key={i} className="flex items-start gap-3 text-slate-300 text-sm p-3 bg-slate-950 rounded-lg border border-slate-800">
+                          <CheckCircle size={16} className="text-slate-600 mt-0.5" /> {job}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 hover:border-indigo-500/30 transition-colors relative overflow-hidden">
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2 relative z-10">
+                      <Rocket size={18} className="text-indigo-500" /> Carreiras Futuras
+                    </h3>
+                    <ul className="space-y-4 relative z-10">
+                      {result.profile.future.map((job, i) => (
+                        <li key={i} className="flex items-start gap-3 text-indigo-100 text-sm p-3 bg-indigo-950/30 rounded-lg border border-indigo-500/20">
+                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 animate-pulse"></div> {job}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* CITIES */}
+                 <div className="bg-emerald-950/10 rounded-2xl p-6 border border-emerald-500/10">
+                  <h3 className="text-lg font-bold text-emerald-400 mb-4 flex items-center gap-2">
+                    <MapPin size={18} /> Polos Estratégicos em Goiás
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {result.profile.topCities.map((item, i) => (
+                      <div key={i} className="bg-slate-900 p-4 rounded-lg border border-slate-800 hover:border-emerald-500/30 transition-colors">
+                        <div className="font-bold text-white mb-1">{item.city}</div>
+                        <div className="text-xs text-slate-400 leading-relaxed">{item.reason}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="flex justify-center pt-16 pb-8">
+              <button 
+                onClick={reset}
+                className="group flex items-center gap-3 px-8 py-4 rounded-full bg-slate-900 text-slate-400 border border-slate-800 hover:text-white hover:border-amber-500 hover:bg-slate-800 transition-all duration-300"
+              >
+                <RefreshCcw size={18} className="group-hover:-rotate-180 transition-transform duration-700 text-amber-500" /> 
+                INICIAR NOVA ANÁLISE
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+      
+      <div className="fixed bottom-0 left-0 w-full h-1 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 z-50 shadow-[0_0_20px_rgba(245,158,11,0.5)]"></div>
+    </div>
+  );
+}
